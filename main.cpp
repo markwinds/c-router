@@ -5,6 +5,7 @@ void test_handler1() { printf("Matched GET age\n"); }
 void test_handler2() { printf("Matched GET home\n"); }
 void test_handler3() { printf("Matched POST profile\n"); }
 void test_handler4() { printf("Matched PUT user\n"); }
+void test_handler5() { printf("Matched GET post\n"); }
 
 int main() {
     RadixRouter router;
@@ -22,6 +23,10 @@ int main() {
     router.addRoute("get /hello/<name>/home", (void *) test_handler2);
     router.addRoute("POST   /hello/<id>/profile", (void *) test_handler3);
     router.addRoute(HttpMethod::PUT, "/user/<uid>", (void *) test_handler4);
+
+    // 增加多个参数的测试用例
+    router.addRoute("GET /user/<uid>/post/<pid>", (void *) test_handler5);
+    router.addRoute("GET /a/<b>/c/<d>/e", (void *) test_handler5);
 
     // 测试 dump 接口
     printf("\nAll registered routes:\n");
@@ -54,10 +59,23 @@ int main() {
     }
 
     // 测试用例 4: 混合使用
-    router.addRoute(HttpMethod::PUT, "/user/<uid>", (void *) test_handler4);
     if (router.match("put /user/admin", res)) {
         std::string uid = res.params["uid"];
         printf("Request: put /user/admin -> uid=%s, ", uid.c_str());
+        ((void (*)()) res.handler)();
+    }
+
+    // 测试用例 5: 多个参数匹配
+    if (router.match("GET /user/99/post/1024", res)) {
+        printf("Request: GET /user/99/post/1024 -> uid=%s, pid=%s, ",
+               res.params["uid"].c_str(), res.params["pid"].c_str());
+        ((void (*)()) res.handler)();
+    }
+
+    // 测试用例 6: 更多层级的参数匹配
+    if (router.match("GET /a/val1/c/val2/e", res)) {
+        printf("Request: GET /a/val1/c/val2/e -> b=%s, d=%s, ",
+               res.params["b"].c_str(), res.params["d"].c_str());
         ((void (*)()) res.handler)();
     }
 
