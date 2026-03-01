@@ -23,6 +23,7 @@ std::string RadixRouter::parseParam(const std::string &part) {
 }
 
 bool RadixRouter::addRoute(const HttpMethod &method, const StringView &path, Handler handler) {
+    std::lock_guard<std::mutex> lock(mutex_);
     if (roots.find(method) == roots.end()) {
         roots[method] = new Node("", STATIC);
     }
@@ -71,6 +72,7 @@ bool RadixRouter::addRoute(const std::string &combined, Handler handler) {
 }
 
 bool RadixRouter::match(HttpMethod method, const StringView &path, RouteResult &out) {
+    std::lock_guard<std::mutex> lock(mutex_);
     out.clear();
 
     if (roots.find(method) == roots.end())
@@ -148,6 +150,7 @@ bool RadixRouter::parseCombined(const std::string &combined, HttpMethod &method,
 }
 
 void RadixRouter::dump(std::string &buf) {
+    std::lock_guard<std::mutex> lock(mutex_);
     for (auto const &pair: roots) {
         std::string method = methodToString(pair.first);
         dumpRecursive(pair.second, method, buf);

@@ -5,6 +5,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <mutex>
 
 enum class HttpMethod { GET, POST, PUT, DELETE_ };
 
@@ -92,6 +93,8 @@ public:
     void dump(std::string &buf);
 
 private:
+    std::mutex mutex_;
+
     enum NodeType { STATIC, PARAM };
 
     struct Node {

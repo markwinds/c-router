@@ -1,4 +1,7 @@
 #include <iostream>
+#include <thread>
+#include <vector>
+#include <atomic>
 #include "router.h"
 
 void test_handler1() { printf("Matched GET age\n"); }
@@ -78,6 +81,33 @@ int main() {
                res.params["b"].c_str(), res.params["d"].c_str());
         ((void (*)()) res.handler)();
     }
+
+    // 多线程并发测试
+    printf("\nStarting multi-threaded stress test...\n");
+    std::atomic<int> success_count{0};
+    std::vector<std::thread> threads;
+    for (int i = 0; i < 10; ++i) {
+        threads.emplace_back([&router, &success_count, i]() {
+            for (int j = 0; j < 1000; ++j) {
+                RouteResult r;
+                if (router.match("GET /hello/user_" + std::to_string(i) + "/age", r)) {
+                    success_count++;
+                }
+            }
+        });
+    }
+
+    // 同时尝试注册新路由
+    std::thread writer([&router]() {
+        for (int i = 0; i < 100; ++i) {
+            router.addRoute("GET /dynamic/" + std::to_string(i), (void *) test_handler1);
+        }
+    });
+
+    for (auto &t: threads) t.join();
+    writer.join();
+
+    printf("Multi-threaded test finished. Successful matches: %d\n", success_count.load());
 
     return 0;
 }
