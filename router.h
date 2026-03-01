@@ -68,7 +68,7 @@ inline std::ostream &operator<<(std::ostream &os, StringView sv) { return os.wri
 
 struct RouteResult {
     std::unordered_map<std::string, std::string> params;
-    void *handler;
+    void *handler = nullptr;
 
     void clear() {
         params.clear();
@@ -101,7 +101,7 @@ private:
         std::unordered_map<std::string, Node *> static_children;
         std::unordered_map<std::string, Node *> param_children;
 
-        Handler handler;
+        Handler handler = nullptr;
 
         Node(const std::string &p, NodeType t) : part(p), type(t) {
         }
