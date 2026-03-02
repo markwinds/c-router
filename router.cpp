@@ -103,11 +103,15 @@ bool RadixRouter::matchRecursive(Node *node, const std::vector<StringView> &part
     }
 
     StringView part = parts[index];
-    std::string key(part.data(), part.size());
 
     // 1️⃣ 静态优先
-    if (node->static_children.count(key)) {
-        if (matchRecursive(node->static_children[key], parts, index + 1, out)) {
+    // 优化：避免创建临时 std::string 进行查找。在 C++11 中，unordered_map::find 必须传入 key 类型。
+    // 但我们可以先通过一些方式减少分配，或者在注册时就做好索引。
+    // 这里目前最简单且兼容 C++11 的方式是：
+    std::string part_str(part.data(), part.size());
+    auto it_static = node->static_children.find(part_str);
+    if (it_static != node->static_children.end()) {
+        if (matchRecursive(it_static->second, parts, index + 1, out)) {
             return true;
         }
     }
@@ -115,7 +119,7 @@ bool RadixRouter::matchRecursive(Node *node, const std::vector<StringView> &part
     // 2️⃣ 参数匹配（递归回溯）
     for (auto const &p: node->param_children) {
         // 记录当前参数，尝试向下匹配
-        out.params[p.first] = std::string(part.data(), part.size());
+        out.params[p.first] = part_str;
         if (matchRecursive(p.second, parts, index + 1, out)) {
             return true;
         }
@@ -127,14 +131,14 @@ bool RadixRouter::matchRecursive(Node *node, const std::vector<StringView> &part
 
 
 bool RadixRouter::parseCombined(const std::string &combined, HttpMethod &method, std::string &path) {
-    size_t first_space = combined.find_first_not_of(' ');
-    if (first_space == std::string::npos) return false;
+    size_t start = combined.find_first_not_of(" \t\r\n");
+    if (start == std::string::npos) return false;
 
-    size_t end_method = combined.find(' ', first_space);
+    size_t end_method = combined.find_first_of(" \t\r\n", start);
     if (end_method == std::string::npos) return false;
 
-    std::string method_str = combined.substr(first_space, end_method - first_space);
-    for (auto &c: method_str) c = (char) std::toupper(c);
+    std::string method_str = combined.substr(start, end_method - start);
+    for (auto &c: method_str) c = (char) std::toupper((unsigned char) c);
 
     if (method_str == "GET") method = HttpMethod::GET;
     else if (method_str == "POST") method = HttpMethod::POST;
@@ -142,10 +146,17 @@ bool RadixRouter::parseCombined(const std::string &combined, HttpMethod &method,
     else if (method_str == "DELETE") method = HttpMethod::DELETE_;
     else return false;
 
-    size_t start_path = combined.find_first_not_of(' ', end_method);
-    if (start_path == std::string::npos) return false;
-
-    path = combined.substr(start_path);
+    size_t start_path = combined.find_first_not_of(" \t\r\n", end_method);
+    if (start_path == std::string::npos) {
+        path = "/"; // 默认路径为根
+    } else {
+        path = combined.substr(start_path);
+        // 去除路径末尾的空白字符
+        size_t end_path = path.find_last_not_of(" \t\r\n");
+        if (end_path != std::string::npos) {
+            path.erase(end_path + 1);
+        }
+    }
     return true;
 }
 

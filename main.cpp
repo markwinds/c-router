@@ -42,29 +42,28 @@ int main() {
     // 测试用例 1: 正常匹配
     printf("Testing match operations:\n");
     if (router.match("GET /hello/alice/age", res)) {
-        std::string name = res.params["name"];
-        printf("Request: GET /hello/alice/age -> name=%s, ", name.c_str());
+        printf("Request: GET /hello/alice/age -> name=%s, ", res.getParam("name").c_str());
         ((void (*)()) res.handler)();
     }
 
+    // 测试未匹配参数
+    printf("Test missing param: name2=%s\n", res.getParam("name2", "default_val").c_str());
+
     // 测试用例 2: 大小写不敏感匹配
     if (router.match("gEt /hello/bob/home", res)) {
-        std::string name = res.params["name"];
-        printf("Request: gEt /hello/bob/home -> name=%s, ", name.c_str());
+        printf("Request: gEt /hello/bob/home -> name=%s, ", res.getParam("name").c_str());
         ((void (*)()) res.handler)();
     }
 
     // 测试用例 3: 多个空格匹配
     if (router.match("POST    /hello/123/profile", res)) {
-        std::string id = res.params["id"];
-        printf("Request: POST /hello/123/profile -> id=%s, ", id.c_str());
+        printf("Request: POST /hello/123/profile -> id=%s, ", res.getParam("id").c_str());
         ((void (*)()) res.handler)();
     }
 
     // 测试用例 4: 混合使用
     if (router.match("put /user/admin", res)) {
-        std::string uid = res.params["uid"];
-        printf("Request: put /user/admin -> uid=%s, ", uid.c_str());
+        printf("Request: put /user/admin -> uid=%s, ", res.getParam("uid").c_str());
         ((void (*)()) res.handler)();
     }
 

@@ -47,6 +47,9 @@ struct StringView {
 
     void remove_suffix(size_t n) { size_val -= n; }
 
+    // --- 转换接口 ---
+    std::string to_string() const { return {data_ptr, size_val}; }
+
     // --- 比较操作 ---
     int compare(StringView other) const {
         size_t rlen = std::min(size_val, other.size_val);
@@ -75,12 +78,28 @@ struct RouteResult {
         params.clear();
         handler = nullptr;
     }
+
+    std::string getParam(const std::string &key, const std::string &defaultValue = "") const {
+        auto it = params.find(key);
+        if (it != params.end()) {
+            return it->second;
+        }
+        return defaultValue;
+    }
 };
 
 
 class RadixRouter {
 public:
     typedef void *Handler;
+
+    RadixRouter() = default;
+
+    ~RadixRouter() {
+        for (auto const &pair: roots) {
+            delete pair.second;
+        }
+    }
 
     bool addRoute(const HttpMethod &method, const StringView &path, Handler handler);
 
@@ -107,6 +126,15 @@ private:
         Handler handler = nullptr;
 
         Node(const std::string &p, NodeType t) : part(p), type(t) {
+        }
+
+        ~Node() {
+            for (auto const &pair: static_children) {
+                delete pair.second;
+            }
+            for (auto const &pair: param_children) {
+                delete pair.second;
+            }
         }
     };
 
