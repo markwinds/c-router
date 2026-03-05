@@ -11,7 +11,7 @@ void test_handler4() { printf("Matched PUT user\n"); }
 void test_handler5() { printf("Matched GET post\n"); }
 
 int main() {
-    RadixRouter router;
+    RadixRouter<void *> router;
 
     // 使用新格式注册
     if (router.addRoute("GET /hello/<name>/age", (void *) test_handler1)) {
@@ -37,7 +37,7 @@ int main() {
     router.dump(buf);
     printf("%s\n", buf.c_str());
 
-    RouteResult res;
+    RouteResult<void *> res;
 
     // 测试用例 1: 正常匹配
     printf("Testing match operations:\n");
@@ -88,7 +88,7 @@ int main() {
     for (int i = 0; i < 10; ++i) {
         threads.emplace_back([&router, &success_count, i]() {
             for (int j = 0; j < 1000; ++j) {
-                RouteResult r;
+                RouteResult<void *> r;
                 if (router.match("GET /hello/user_" + std::to_string(i) + "/age", r)) {
                     success_count++;
                 }

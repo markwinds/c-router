@@ -3,4 +3,4 @@ project(c_router)
 
 set(CMAKE_CXX_STANDARD 11)
 
-add_executable(c_router main.cpp router.cpp router.h)
+add_executable(c_router main.cpp router.h)
