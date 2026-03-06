@@ -169,15 +169,20 @@ public:
 
     RadixRouter(const RadixRouter& other)
     {
+        if (this == &other)
+        {
+            return;
+        }
         copyFrom(other);
     }
 
     RadixRouter& operator=(const RadixRouter& other)
     {
-        if (this != &other)
+        if (this == &other)
         {
-            copyFrom(other);
+            return *this;
         }
+        copyFrom(other);
         return *this;
     }
 
@@ -531,6 +536,11 @@ private:
 
     void copyFrom(const RadixRouter& other)
     {
+        if (this == &other)
+        {
+            return;
+        }
+
         std::lock(mutex_, other.mutex_);
         std::lock_guard<std::mutex> lock1(mutex_, std::adopt_lock);
         std::lock_guard<std::mutex> lock2(other.mutex_, std::adopt_lock);
