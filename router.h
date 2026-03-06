@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
 #include <iostream>
@@ -132,13 +133,19 @@ inline std::ostream& operator<<(std::ostream& os, StringView sv)
 template<typename HandlerType>
 struct RouteResult
 {
+    struct HandlerInfo
+    {
+        HandlerType handler;
+        int         priority;
+    };
+
     std::unordered_map<std::string, std::string> params;
-    HandlerType                                  handler = HandlerType();
+    std::vector<HandlerInfo>                     handlers;
 
     void clear()
     {
         params.clear();
-        handler = HandlerType();
+        handlers.clear();
     }
 
     std::string getParam(const std::string& key, const std::string& defaultValue = "") const
@@ -179,7 +186,7 @@ public:
         clear();
     }
 
-    bool addRoute(const HttpMethod& method, const StringView& path, Handler handler)
+    bool addRoute(const HttpMethod& method, const StringView& path, Handler handler, int priority = 10)
     {
         std::lock_guard<std::mutex> lock(mutex_);
         if (roots.find(method) == roots.end())
@@ -216,22 +223,32 @@ public:
             node = node->static_children[part];
         }
 
-        if (node->handler)
+        // 检查优先级冲突
+        for (const auto& entry : node->handlers)
         {
-            return false;   // Already registered
+            if (entry.priority == priority)
+            {
+                return false;   // 相同优先级已存在
+            }
         }
 
-        node->handler = handler;
+        node->handlers.push_back({handler, priority});
+        // 按优先级从大到小排序
+        std::sort(node->handlers.begin(),
+                  node->handlers.end(),
+                  [](const typename Node::HandlerEntry& a, const typename Node::HandlerEntry& b) {
+                      return a.priority > b.priority;
+                  });
         return true;
     }
 
-    bool addRoute(const std::string& combined, Handler handler)
+    bool addRoute(const std::string& combined, Handler handler, int priority = 10)
     {
         HttpMethod  method;
         std::string path;
         if (parseCombined(combined, method, path))
         {
-            return addRoute(method, StringView(path), handler);
+            return addRoute(method, StringView(path), handler, priority);
         }
         return false;
     }
@@ -283,13 +300,19 @@ private:
 
     struct Node
     {
+        struct HandlerEntry
+        {
+            Handler handler;
+            int     priority;
+        };
+
         std::string part;
         NodeType    type;
 
         std::unordered_map<std::string, Node*> static_children;
         std::unordered_map<std::string, Node*> param_children;
 
-        Handler handler = Handler();
+        std::vector<HandlerEntry> handlers;
 
         Node(const std::string& p, NodeType t)
             : part(p)
@@ -299,7 +322,7 @@ private:
         Node(const Node& other)
             : part(other.part)
             , type(other.type)
-            , handler(other.handler)
+            , handlers(other.handlers)
         {
             for (auto const& pair : other.static_children)
             {
@@ -422,9 +445,9 @@ private:
             current_path += node->part;
         }
 
-        if (node->handler)
+        if (!node->handlers.empty())
         {
-            buf += current_path + "\n";
+            buf += current_path + " (" + std::to_string(node->handlers.size()) + " handlers)\n";
         }
 
         for (auto const& pair : node->static_children)
@@ -454,9 +477,12 @@ private:
     {
         if (index == parts.size())
         {
-            if (node->handler)
+            if (!node->handlers.empty())
             {
-                out.handler = node->handler;
+                for (auto const& h : node->handlers)
+                {
+                    out.handlers.push_back({h.handler, h.priority});
+                }
                 return true;
             }
             return false;
